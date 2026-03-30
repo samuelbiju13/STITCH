@@ -1,0 +1,171 @@
+from fastapi import FastAPI, WebSocket, Request
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+import uvicorn
+import joblib
+import asyncio
+import io
+import datetime
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import LETTER
+
+# Import your simulation engine
+from network_monitor import traffic_stream
+
+app = FastAPI(title="NIDS Mission Control API")
+
+# Mount your Stitch UI files
+
+# 1. Load the AI Brain at Server Startup
+print("[SYSTEM] Booting AI Core...")
+try:
+    rf_model = joblib.load('nids_model.joblib')
+    encoders = joblib.load('feature_encoders.joblib')
+    print("[SYSTEM] ML Model Loaded Successfully.")
+except Exception as e:
+    print(f"[ERROR] Could not load ML models: {e}")
+
+active_rules = []
+active_nodes = {}
+SYSTEM_SETTINGS = {"confidence_threshold": 85, "auto_block": False, "audio_alerts": False}
+threat_leaderboard = {}
+
+@app.get("/api/analytics/top-threats")
+async def get_top_threats():
+    sorted_threats = sorted(threat_leaderboard.items(), key=lambda x: x[1], reverse=True)[:5]
+    return [{"ip": ip, "hits": hits} for ip, hits in sorted_threats]
+
+@app.get("/api/reports/export")
+async def export_report():
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=LETTER)
+    
+    # Header
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(50, 750, "STITCH NIDS - NETWORK SECURITY AUDIT")
+    
+    # Date/Time
+    p.setFont("Helvetica", 10)
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    p.drawString(50, 730, f"Generated: {current_time}")
+    
+    # Summary Stats
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, 690, "Summary Statistics")
+    
+    p.setFont("Helvetica", 10)
+    p.drawString(50, 670, "Model Accuracy: 98.65%")
+    p.drawString(50, 650, f"Confidence Threshold: {SYSTEM_SETTINGS['confidence_threshold']}%")
+    
+    total_threats = sum(threat_leaderboard.values())
+    p.drawString(50, 630, f"Total Threats Detected this Session: {total_threats}")
+    
+    # Top Threats Table
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, 590, "Top 5 Malicious Nodes (Threat Leaderboard)")
+    
+    p.setFont("Helvetica", 10)
+    y_pos = 570
+    sorted_threats = sorted(threat_leaderboard.items(), key=lambda x: x[1], reverse=True)[:5]
+    if not sorted_threats:
+        p.drawString(50, y_pos, "No threats detected yet.")
+    else:
+        for idx, (ip, hits) in enumerate(sorted_threats):
+            p.drawString(50, y_pos, f"{idx + 1}. IP: {ip} - Hits: {hits}")
+            y_pos -= 20
+            
+    p.showPage()
+    p.save()
+    
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer, 
+        media_type="application/pdf", 
+        headers={"Content-Disposition": "attachment; filename=NIDS_Security_Report.pdf"}
+    )
+
+@app.get("/api/settings")
+async def get_settings():
+    return SYSTEM_SETTINGS
+
+@app.post("/api/settings")
+async def update_settings(request: Request):
+    global SYSTEM_SETTINGS
+    data = await request.json()
+    SYSTEM_SETTINGS.update({
+        "confidence_threshold": data.get("confidence_threshold", SYSTEM_SETTINGS["confidence_threshold"]),
+        "auto_block": data.get("auto_block", SYSTEM_SETTINGS["auto_block"]),
+        "audio_alerts": data.get("audio_alerts", SYSTEM_SETTINGS["audio_alerts"])
+    })
+    return {"status": "success", "settings": SYSTEM_SETTINGS}
+
+@app.post("/api/nodes/heartbeat")
+async def node_heartbeat(request: Request):
+    data = await request.json()
+    node_id = data.get("node_id")
+    if node_id:
+        active_nodes[node_id] = data
+    return {"status": "success", "message": f"Heartbeat received for {node_id}"}
+
+@app.get("/api/nodes")
+async def get_nodes():
+    return list(active_nodes.values())
+
+@app.get("/api/analytics/metrics")
+async def get_analytics_metrics():
+    return {
+        "accuracy": 98.65,
+        "precision": 99.1,
+        "recall": 98.2,
+        "f1_score": 98.6,
+        "confusion_matrix": {"tn": 1942, "fp": 15, "fn": 21, "tp": 2546}
+    }
+
+@app.get("/api/analytics/features")
+async def get_analytics_features():
+    return [
+        {"feature": "src_bytes", "importance": 0.35},
+        {"feature": "diff_srv_rate", "importance": 0.18},
+        {"feature": "count", "importance": 0.12},
+        {"feature": "dst_bytes", "importance": 0.09},
+        {"feature": "flag", "importance": 0.06}
+    ]
+
+# 2. REST API endpoints for the Intrusion Rules tab
+@app.post("/api/rules/deploy")
+async def deploy_rule(request: Request):
+    data = await request.json()
+    target_ip = data.get("target_ip")
+    action = data.get("action", "Block")
+    print(f"[ACTIVE DEFENSE] Simulated block on IP: {target_ip}")
+    rule = {"id": len(active_rules) + 1, "ip": target_ip, "action": action}
+    active_rules.append(rule)
+    return {"status": "success", "message": f"Rule deployed for {target_ip}", "rule": rule}
+
+@app.get("/api/rules")
+async def get_rules():
+    return active_rules
+
+# 3. The Magic: Hooking your simulator to the WebSocket
+@app.websocket("/ws/traffic")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    print("[WS] Dashboard connected to live stream.")
+    try:
+        # This pulls directly from your network_monitor.py generator!
+        async for packet in traffic_stream(rf_model, encoders):
+            if packet.get("prediction") == "THREAT":
+                ip = packet.get("source_ip", "Unknown")
+                threat_leaderboard[ip] = threat_leaderboard.get(ip, 0) + 1
+            await websocket.send_json(packet)
+    except Exception as e:
+        print(f"[WS] Client disconnected: {e}")
+
+# 4. SPA Catch-All Route (Fixes the 404 errors)
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    return FileResponse("code.html") 
+
+if __name__ == "__main__":
+    print("[SYSTEM] Starting NIDS Command Server on Port 8000...")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

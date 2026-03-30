@@ -1,0 +1,2487 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>COMMAND_ARCHITECT_NIDS | Mission Control</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries">
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "background": "#0d131e",
+            "outline-variant": "#40484b",
+            "surface-bright": "#333945",
+            "surface-container-high": "#242a36",
+            "tertiary-container": "#97bae8",
+            "on-tertiary-fixed": "#001c37",
+            "surface-container-highest": "#2f3541",
+            "secondary-fixed": "#cee5ff",
+            "on-secondary-container": "#9bbcdd",
+            "on-tertiary": "#033258",
+            "outline": "#8a9295",
+            "surface-variant": "#2f3541",
+            "primary-container": "#88c0d0",
+            "inverse-surface": "#dde2f2",
+            "on-secondary-fixed-variant": "#294965",
+            "on-primary-fixed": "#001f26",
+            "surface-tint": "#97cfe0",
+            "inverse-primary": "#2b6674",
+            "inverse-on-surface": "#2b313c",
+            "on-surface": "#dde2f2",
+            "secondary-fixed-dim": "#a9caeb",
+            "on-primary-fixed-variant": "#094e5c",
+            "on-surface-variant": "#c0c8cb",
+            "surface-container-lowest": "#080e19",
+            "primary": "#a3dcec",
+            "surface-container": "#1a202b",
+            "error-container": "#93000a",
+            "error": "#ffb4ab",
+            "on-error": "#690005",
+            "primary-fixed-dim": "#97cfe0",
+            "on-tertiary-fixed-variant": "#234970",
+            "surface": "#0d131e",
+            "secondary": "#a9caeb",
+            "surface-dim": "#0d131e",
+            "on-primary-container": "#0c4f5d",
+            "tertiary-fixed": "#d2e4ff",
+            "on-background": "#dde2f2",
+            "on-secondary-fixed": "#001d32",
+            "on-secondary": "#0e334e",
+            "tertiary": "#b7d5ff",
+            "on-primary": "#003640",
+            "surface-container-low": "#161c27",
+            "tertiary-fixed-dim": "#a6c9f8",
+            "secondary-container": "#2b4c68",
+            "on-error-container": "#ffdad6",
+            "primary-fixed": "#b3ecfc",
+            "on-tertiary-container": "#254a72"
+          },
+          fontFamily: {
+            "headline": ["Space Grotesk"],
+            "body": ["Inter"],
+            "label": ["Inter"]
+          },
+          borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+        },
+      },
+    }
+
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+
+    body {
+      background-color: #0d131e;
+      color: #dde2f2;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .nord-gradient-primary {
+      background: linear-gradient(135deg, #a3dcec 0%, #88c0d0 100%);
+    }
+
+    .glass-panel {
+      background: rgba(36, 42, 54, 0.6);
+      backdrop-filter: blur(16px);
+    }
+
+    /* ── WebSocket Status Pill ─────────────────── */
+    #ws-status-pill {
+      transition: background-color 0.4s ease, border-color 0.4s ease;
+    }
+
+    #ws-status-dot {
+      transition: background-color 0.4s ease;
+    }
+
+    #ws-status-text {
+      transition: color 0.4s ease;
+    }
+
+    /* ── Threat Log fade-in ────────────────────── */
+    @keyframes rowSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .threat-row-new {
+      animation: rowSlideIn 0.35s ease forwards;
+    }
+
+    /* ── Console line slide ────────────────────── */
+    @keyframes consoleLine {
+      from {
+        opacity: 0;
+        transform: translateX(-6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .console-line-new {
+      animation: consoleLine 0.25s ease forwards;
+    }
+
+    /* ── Toast notification ────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 5.5rem;
+      right: 1.5rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+
+    .toast {
+      background: rgba(36, 42, 54, 0.92);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(64, 72, 75, 0.25);
+      border-left: 3px solid #a3dcec;
+      color: #c0c8cb;
+      font-size: 0.68rem;
+      font-family: 'Inter', sans-serif;
+      padding: 0.65rem 1rem;
+      border-radius: 0.375rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      max-width: 280px;
+      opacity: 0;
+      transform: translateX(20px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .toast.error {
+      border-left-color: #ffb4ab;
+      color: #ffb4ab;
+    }
+
+    /* ── Deploy Rule Modal ─────────────────────── */
+    #modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 14, 25, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 8888;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    #modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #modal-box {
+      background: #1a202b;
+      border: 1px solid rgba(64, 72, 75, 0.2);
+      border-radius: 0.5rem;
+      padding: 2rem;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+      transform: translateY(10px);
+      transition: transform 0.25s ease;
+    }
+
+    #modal-overlay.open #modal-box {
+      transform: translateY(0);
+    }
+
+    #modal-box label {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #8a9295;
+      margin-bottom: 0.35rem;
+    }
+
+    #modal-box input,
+    #modal-box select {
+      width: 100%;
+      background: #080e19;
+      border: 1px solid rgba(64, 72, 75, 0.25);
+      border-radius: 0.25rem;
+      color: #dde2f2;
+      font-size: 0.8rem;
+      padding: 0.55rem 0.75rem;
+      outline: none;
+      font-family: 'Inter', sans-serif;
+      transition: box-shadow 0.2s;
+    }
+
+    #modal-box input:focus,
+    #modal-box select:focus {
+      box-shadow: 0 0 0 2px rgba(163, 220, 236, 0.25);
+    }
+
+    #modal-box select option {
+      background: #1a202b;
+    }
+
+    /* ── Intrusion Rules Panel ──────────────────── */
+    #rules-panel {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 14, 25, 0.82);
+      backdrop-filter: blur(8px);
+      z-index: 8000;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 80px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    #rules-panel.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #rules-panel-box {
+      background: #1a202b;
+      border: 1px solid rgba(64, 72, 75, 0.2);
+      border-radius: 0.75rem;
+      width: 100%;
+      max-width: 860px;
+      max-height: 78vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+      transform: translateY(12px);
+      transition: transform 0.25s ease;
+    }
+
+    #rules-panel.open #rules-panel-box {
+      transform: translateY(0);
+    }
+
+    #rules-table-wrap {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .rules-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .rules-tbl thead tr {
+      background: rgba(8, 14, 25, 0.6);
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: #40484b;
+      font-weight: 700;
+    }
+
+    .rules-tbl th,
+    .rules-tbl td {
+      padding: 0.9rem 1.4rem;
+    }
+
+    .rules-tbl tbody tr {
+      border-top: 1px solid rgba(64, 72, 75, 0.08);
+      transition: background 0.15s;
+    }
+
+    .rules-tbl tbody tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .rules-tbl td {
+      font-size: 0.78rem;
+      font-family: 'Inter', sans-serif;
+      color: #c0c8cb;
+    }
+
+    .rules-tbl td.mono {
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #dde2f2;
+    }
+
+    .action-badge {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border-radius: 0.2rem;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .badge-block {
+      background: rgba(255, 180, 171, 0.15);
+      color: #ffb4ab;
+    }
+
+    .badge-monitor {
+      background: rgba(163, 220, 236, 0.12);
+      color: #a3dcec;
+    }
+
+    .badge-throttle {
+      background: rgba(206, 229, 255, 0.12);
+      color: #cee5ff;
+    }
+
+    .revoke-btn {
+      padding: 0.3rem 0.75rem;
+      background: rgba(255, 180, 171, 0.08);
+      border: 1px solid rgba(255, 180, 171, 0.2);
+      border-radius: 0.2rem;
+      color: #ffb4ab;
+      font-size: 0.68rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .revoke-btn:hover {
+      background: rgba(255, 180, 171, 0.18);
+      border-color: rgba(255, 180, 171, 0.45);
+    }
+
+    /* ── SPA Route System (Top Nav) ───────────────── */
+    .route-page {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .route-page.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* ── SPA View System (Sidebar) ────────────────── */
+    .spa-view {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .spa-view.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* ── Network Map ──────────────────────────────── */
+    #net-map-canvas {
+      width: 100%;
+      height: 480px;
+      display: block;
+      border-radius: 0.75rem;
+      background: #080e19;
+    }
+
+    .map-legend {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      font-size: 0.7rem;
+      color: #8a9295;
+      margin-top: 0.75rem;
+    }
+
+    .map-legend span {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .map-legend .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* ── Traffic Logs filter bar ───────────────────── */
+    .logs-filter-bar {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(64, 72, 75, 0.1);
+    }
+
+    .logs-filter-bar input,
+    .logs-filter-bar select {
+      background: #080e19;
+      border: 1px solid rgba(64, 72, 75, 0.25);
+      border-radius: 0.25rem;
+      color: #dde2f2;
+      font-size: 0.75rem;
+      padding: 0.4rem 0.7rem;
+      outline: none;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .logs-filter-bar input::placeholder {
+      color: #40484b;
+    }
+
+    .logs-filter-bar label {
+      font-size: 0.72rem;
+      color: #8a9295;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+    }
+
+    .logs-filter-bar input[type=checkbox] {
+      width: 14px;
+      height: 14px;
+      accent-color: #a3dcec;
+      cursor: pointer;
+    }
+
+    .logs-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .logs-tbl thead tr {
+      background: rgba(8, 14, 25, 0.6);
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: #40484b;
+      font-weight: 700;
+    }
+
+    .logs-tbl th,
+    .logs-tbl td {
+      padding: 0.75rem 1.25rem;
+    }
+
+    .logs-tbl tbody tr {
+      border-top: 1px solid rgba(64, 72, 75, 0.07);
+      transition: background 0.15s;
+    }
+
+    .logs-tbl tbody tr:hover {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .logs-tbl td {
+      font-size: 0.75rem;
+      color: #c0c8cb;
+    }
+
+    .logs-tbl td.mono {
+      font-family: monospace;
+      color: #dde2f2;
+    }
+
+    .pred-threat {
+      color: #ffb4ab;
+      font-weight: 700;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .pred-normal {
+      color: #a3dcec;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Vault ─────────────────────────────────────── */
+    .vault-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .vault-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .vault-section {
+      background: #1a202b;
+      border: 1px solid rgba(64, 72, 75, 0.15);
+      border-radius: 0.75rem;
+      overflow: hidden;
+    }
+
+    .vault-section-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid rgba(64, 72, 75, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .vault-section-header .material-symbols-outlined {
+      font-size: 1.1rem;
+      color: #a3dcec;
+    }
+
+    .vault-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #a3dcec;
+    }
+
+    .vault-file-list {
+      padding: 0.5rem 0;
+    }
+
+    .vault-file-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.7rem 1.5rem;
+      transition: background 0.15s;
+    }
+
+    .vault-file-row:hover {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .vault-file-info {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .vault-file-icon {
+      font-size: 1rem;
+      color: #40484b;
+    }
+
+    .vault-file-name {
+      font-family: monospace;
+      font-size: 0.72rem;
+      color: #dde2f2;
+    }
+
+    .vault-file-meta {
+      font-size: 0.62rem;
+      color: #40484b;
+      margin-top: 0.1rem;
+    }
+
+    .vault-dl-btn {
+      padding: 0.28rem 0.7rem;
+      background: rgba(163, 220, 236, 0.07);
+      border: 1px solid rgba(163, 220, 236, 0.2);
+      border-radius: 0.2rem;
+      color: #a3dcec;
+      font-size: 0.65rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+
+    .vault-dl-btn:hover {
+      background: rgba(163, 220, 236, 0.18);
+    }
+  </style>
+</head>
+
+<body class="overflow-x-hidden">
+  <!-- TopNavBar -->
+  <header
+    class="bg-slate-900/80 backdrop-blur-xl dark:bg-[#0d131e]/80 text-cyan-400 dark:text-[#a3dcec] font-['Space_Grotesk'] tracking-tight docked full-width top-0 z-50 bg-[#161c27] transition-colors duration-300 shadow-2xl shadow-black/20 fixed top-0 w-full">
+    <div class="flex justify-between items-center w-full px-6 py-3 max-w-[1920px] mx-auto">
+      <div class="flex items-center gap-8">
+        <span
+          class="text-xl font-bold tracking-tighter text-cyan-400 dark:text-[#a3dcec] uppercase">COMMAND_ARCHITECT_NIDS</span>
+        <nav class="hidden md:flex items-center gap-6" id="top-nav-links">
+          <a class="top-nav-link text-cyan-400 dark:text-[#a3dcec] border-b-2 border-cyan-400 dark:border-[#a3dcec] pb-1 transition-colors duration-200"
+            href="/" data-route="/">Dashboard</a>
+          <a class="top-nav-link text-slate-400 dark:text-[#40484b] hover:text-slate-200 transition-colors duration-200 pb-1 border-b-2 border-transparent"
+            href="/analytics" data-route="/analytics">Analytics</a>
+          <a class="top-nav-link text-slate-400 dark:text-[#40484b] hover:text-slate-200 transition-colors duration-200 pb-1 border-b-2 border-transparent"
+            href="/nodes" data-route="/nodes">Nodes</a>
+          <a class="top-nav-link text-slate-400 dark:text-[#40484b] hover:text-slate-200 transition-colors duration-200 pb-1 border-b-2 border-transparent"
+            href="/settings" data-route="/settings">Settings</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- ══ SYSTEM STATUS PILL — wired by WebSocket JS ══ -->
+        <div id="ws-status-pill"
+          class="flex items-center bg-surface-container-lowest px-3 py-1.5 rounded-full border border-outline-variant/10">
+          <span id="ws-status-dot" class="w-2 h-2 rounded-full bg-primary animate-pulse mr-2"></span>
+          <span id="ws-status-text"
+            class="text-xs font-semibold tracking-widest text-primary uppercase">Connecting…</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="p-2 text-slate-400 hover:bg-white/5 transition-all rounded-md">
+            <span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+          </button>
+          <button class="p-2 text-slate-400 hover:bg-white/5 transition-all rounded-md">
+            <span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+          </button>
+          <div
+            class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-outline-variant/20 ml-2">
+            <img alt="Security Operator Profile" class="w-full h-full object-cover"
+              data-alt="Cybersecurity operator profile avatar"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_dKtSVBFmQ-vhj4cHm73lGUFjVQZhYGrrqoTyI_RzxQijsmqmhaNPlnjfwQ36BzuD3CIBW1rl355490AKzG0VwdOqznbSVODFmIVhlVPG73cVefuv1ZgjZiCRrOJ71-7hgVBEf_RBIrGh3HrMQ7-SPYm3BwvMIApOlaVG6npsM1FXQPYetwQOHq2ye-TiEkeE4-nwLMDcpSTckCjWa8MCK7bLxVUivEqieCtc2mzTssdDknV1qjKSyDkY_u2yTunMK0kwhPKIojs" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+  <!-- SideNavBar -->
+  <aside
+    class="bg-[#080e19] dark:bg-[#080e19] font-['Inter'] text-sm font-medium fixed left-0 top-0 h-full flex flex-col py-20 z-40 w-64 no-border bg-gradient-to-r from-[#0d131e] to-transparent flat no shadows hidden lg:flex">
+    <div class="px-6 mb-8">
+      <div class="flex items-center gap-3">
+        <div class="w-2 h-8 nord-gradient-primary rounded-full"></div>
+        <div>
+          <p class="text-[10px] tracking-[0.2em] text-outline uppercase">Header Title</p>
+          <h2 class="text-on-surface font-headline font-bold text-sm tracking-tight">NODE_01_PROXIMITY</h2>
+          <p class="text-[10px] text-primary/70">Status: Secure</p>
+        </div>
+      </div>
+    </div>
+    <nav class="flex flex-col gap-1">
+      <a class="text-slate-500 dark:text-[#40484b] mx-2 px-4 py-3 flex items-center gap-3 hover:bg-[#161c27] hover:text-slate-200 transition-all duration-200 ease-in-out"
+        href="#" data-view="view-network-map">
+        <span class="material-symbols-outlined" data-icon="hub">hub</span>
+        <span>Network Map</span>
+      </a>
+      <a class="text-slate-500 dark:text-[#40484b] mx-2 px-4 py-3 flex items-center gap-3 hover:bg-[#161c27] hover:text-slate-200 transition-all duration-200 ease-in-out"
+        href="#" data-view="view-traffic-logs">
+        <span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+        <span>Traffic Logs</span>
+      </a>
+      <a class="text-slate-500 dark:text-[#40484b] mx-2 px-4 py-3 flex items-center gap-3 hover:bg-[#161c27] hover:text-slate-200 transition-all duration-200 ease-in-out"
+        href="#" data-module="Intrusion Rules">
+        <span class="material-symbols-outlined" data-icon="security">security</span>
+        <span>Intrusion Rules</span>
+      </a>
+      <a class="bg-[#1a202b] text-cyan-400 dark:text-[#a3dcec] rounded-md mx-2 px-4 py-3 flex items-center gap-3 transition-all duration-200 ease-in-out"
+        href="#" data-view="view-dashboard" id="nav-dashboard">
+        <span class="material-symbols-outlined" data-icon="monitor_heart">monitor_heart</span>
+        <span>System Health</span>
+      </a>
+      <a class="text-slate-500 dark:text-[#40484b] mx-2 px-4 py-3 flex items-center gap-3 hover:bg-[#161c27] hover:text-slate-200 transition-all duration-200 ease-in-out"
+        href="#" data-view="view-vault">
+        <span class="material-symbols-outlined" data-icon="lock">lock</span>
+        <span>Vault</span>
+      </a>
+    </nav>
+    <div class="mt-auto px-6 py-6">
+      <div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant/5">
+        <p class="text-[10px] text-outline-variant uppercase tracking-widest mb-2">Kernel Load</p>
+        <div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden">
+          <div class="bg-primary h-full w-[24%]"></div>
+        </div>
+        <p class="text-xs mt-2 font-mono text-primary">24.8% Nominal</p>
+      </div>
+    </div>
+  </aside>
+  <!-- Main Content Canvas -->
+  <main class="lg:ml-64 pt-20 p-6 min-h-screen">
+    <div class="max-w-[1600px] mx-auto space-y-6">
+
+      <!-- ══ TOP-LEVEL ROUTE: DASHBOARD ════════════════════════════ -->
+      <div id="page-dashboard" class="route-page active">
+
+        <!-- ══ VIEW: DASHBOARD (default) ══════════════════════════════ -->
+        <div id="view-dashboard" class="spa-view active">
+          <!-- Page Header -->
+          <div class="flex justify-between items-end mb-2">
+            <div>
+              <h1 class="font-headline text-3xl font-bold tracking-tight text-on-surface">NIDS Mission Control</h1>
+              <p class="text-on-surface-variant text-sm mt-1">Real-time spectral analysis of inbound and outbound
+                traffic.</p>
+            </div>
+            <div class="flex gap-3">
+              <button id="export-report-btn"
+                class="px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-sm font-medium rounded-md transition-all flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm" data-icon="download">download</span>
+                                        Export Report
+                                    </button>
+              <button id="btn-deploy"
+                class="px-4 py-2 nord-gradient-primary text-on-primary text-sm font-bold rounded-md transition-all flex items-center gap-2 shadow-lg shadow-primary/10">
+                <span class="material-symbols-outlined text-sm" data-icon="add_moderator">add_moderator</span>
+                                        Deploy Rule
+                                    </button>
+            </div>
+          </div>
+          <!-- Top Row: Live Traffic Flow Bento Area -->
+          <section class="bg-surface-container-low rounded-xl p-6 relative overflow-hidden group">
+            <div class="flex justify-between items-center mb-8 relative z-10">
+              <h2 class="font-headline text-lg font-semibold tracking-tight">Live Traffic Flow</h2>
+              <div class="flex gap-4 text-xs font-medium">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-primary"></span>
+                  <span class="text-on-surface-variant">Normal Packets</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-error"></span>
+                  <span class="text-on-surface-variant">Anomalies</span>
+                </div>
+              </div>
+            </div>
+            <!-- Live SVG Chart — driven by WebSocket JS -->
+            <div class="h-64 w-full relative" id="chart-container">
+              <svg id="live-chart" class="w-full h-full" viewBox="0 0 1000 200" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="gradPrimary" x1="0%" x2="0%" y1="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#88c0d0;stop-opacity:0.5"></stop>
+                    <stop offset="100%" style="stop-color:#88c0d0;stop-opacity:0"></stop>
+                  </linearGradient>
+                  <linearGradient id="gradError" x1="0%" x2="0%" y1="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ffb4ab;stop-opacity:0.3"></stop>
+                    <stop offset="100%" style="stop-color:#ffb4ab;stop-opacity:0"></stop>
+                  </linearGradient>
+                </defs>
+                <!-- Normal traffic fill area -->
+                <path id="chart-fill-normal" d="" fill="url(#gradPrimary)"></path>
+                <!-- Normal traffic line -->
+                <path id="chart-line-normal" d="" fill="none" stroke="#88c0d0" stroke-width="2" stroke-linejoin="round">
+                </path>
+                <!-- Threat fill area -->
+                <path id="chart-fill-threat" d="" fill="url(#gradError)"></path>
+                <!-- Threat line -->
+                <path id="chart-line-threat" d="" fill="none" stroke="#ffb4ab" stroke-width="2" stroke-linejoin="round">
+                </path>
+                <!-- Animated current-position dot -->
+                <circle id="chart-dot-normal" cx="1000" cy="100" r="4" fill="#88c0d0" class="animate-pulse"></circle>
+                <circle id="chart-dot-threat" cx="1000" cy="195" r="0" fill="#ffb4ab"></circle>
+              </svg>
+              <!-- Grid Lines Overlay -->
+              <div class="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
+                <div class="border-t border-outline"></div>
+                <div class="border-t border-outline"></div>
+                <div class="border-t border-outline"></div>
+                <div class="border-t border-outline"></div>
+              </div>
+            </div>
+            <!-- Abstract technical background element -->
+            <div class="absolute -right-20 -bottom-20 opacity-5 pointer-events-none">
+              <span class="material-symbols-outlined text-[300px] rotate-12" data-icon="language">language</span>
+            </div>
+          </section>
+          <!-- Middle Row: Analytics Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Threat Signatures (Donut) -->
+            <div class="lg:col-span-4 bg-surface-container rounded-xl p-6 flex flex-col">
+              <h2 class="font-headline text-sm font-semibold tracking-widest text-on-surface-variant uppercase mb-6">
+                Threat Signatures</h2>
+              <div class="flex-grow flex items-center justify-center relative">
+                <div
+                  class="relative w-48 h-48 rounded-full border-[12px] border-surface-container-highest flex items-center justify-center">
+                  <!-- SVG Donut Simulation -->
+                  <svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" fill="none" r="15.915" stroke="#88c0d0" stroke-dasharray="70 30"
+                      stroke-dashoffset="0" stroke-width="3"></circle>
+                    <circle cx="18" cy="18" fill="none" r="15.915" stroke="#ffb4ab" stroke-dasharray="15 85"
+                      stroke-dashoffset="-70" stroke-width="3"></circle>
+                    <circle cx="18" cy="18" fill="none" r="15.915" stroke="#cee5ff" stroke-dasharray="15 85"
+                      stroke-dashoffset="-85" stroke-width="3"></circle>
+                  </svg>
+                  <div class="text-center">
+                    <span id="donut-count" class="text-2xl font-bold font-headline block">0</span>
+                    <span class="text-[10px] text-on-surface-variant uppercase">Threats Detected</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-6 space-y-2">
+                <div class="flex justify-between items-center text-xs">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-sm bg-primary"></span>
+                    <span class="text-on-surface-variant">DDoS Attack</span>
+                  </div>
+                  <span class="font-mono text-on-surface">70%</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-sm bg-error"></span>
+                    <span class="text-on-surface-variant">Port Scan</span>
+                  </div>
+                  <span class="font-mono text-on-surface">15%</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-sm bg-secondary-fixed"></span>
+                    <span class="text-on-surface-variant">Brute Force</span>
+                  </div>
+                  <span class="font-mono text-on-surface">15%</span>
+                </div>
+              </div>
+            </div>
+            <!-- Top Malicious Nodes (Bar Chart) -->
+            <div class="lg:col-span-8 bg-surface-container rounded-xl p-6">
+              <h2 class="font-headline text-sm font-semibold tracking-widest text-on-surface-variant uppercase mb-6">Top
+                Malicious Nodes</h2>
+              <div id="malicious-nodes-list" class="space-y-5">
+                <!-- Dynamic leaderboard injected via JS -->
+              </div>
+            </div>
+          </div>
+          <!-- Bottom Row: Log Table -->
+          <div class="bg-surface-container-low rounded-xl overflow-hidden">
+            <div class="px-6 py-5 flex justify-between items-center border-b border-outline-variant/5">
+              <h2 class="font-headline text-lg font-semibold tracking-tight text-on-surface">Real-Time Threat Log</h2>
+              <div class="flex gap-2">
+                <span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors"
+                  data-icon="search">search</span>
+                <span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors"
+                  data-icon="filter_list">filter_list</span>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr
+                    class="bg-surface-container-lowest/50 text-[10px] uppercase tracking-widest text-outline-variant font-bold">
+                    <th class="px-6 py-4">Timestamp</th>
+                    <th class="px-6 py-4">Source IP</th>
+                    <th class="px-6 py-4">Target Port</th>
+                    <th class="px-6 py-4">ML Classification</th>
+                    <th class="px-6 py-4">Confidence Score</th>
+                    <th class="px-6 py-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <!-- ══ THREAT LOG TBODY — prepended by WebSocket JS ══ -->
+                <tbody id="threat-log-body" class="divide-y divide-outline-variant/5">
+                  <!-- Seed rows (static) -->
+                  <tr class="hover:bg-surface-container-highest/30 transition-colors">
+                    <td class="px-6 py-4 text-xs font-mono text-on-surface-variant">——:——:——.———</td>
+                    <td class="px-6 py-4 text-xs font-mono text-outline">Awaiting stream…</td>
+                    <td class="px-6 py-4 text-xs font-mono">—</td>
+                    <td class="px-6 py-4"><span
+                        class="px-2 py-0.5 bg-surface-container-highest text-on-surface-variant text-[10px] font-bold rounded uppercase tracking-tighter">Idle</span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="w-24 bg-surface-container-highest h-1 rounded-full overflow-hidden">
+                          <div class="bg-primary h-full w-0"></div>
+                        </div><span class="text-[10px] font-mono">—</span>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-right"><button
+                        class="p-1 hover:bg-surface-container-highest rounded text-on-surface-variant"><span
+                          class="material-symbols-outlined text-sm">more_vert</span></button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="px-6 py-4 bg-surface-container-lowest/30 flex justify-between items-center">
+              <p class="text-[10px] text-on-surface-variant" id="threat-count-label">Displaying 0 detected threats</p>
+              <div class="flex items-center gap-1">
+                <button class="p-1 text-on-surface-variant hover:text-on-surface transition-colors">
+                  <span class="material-symbols-outlined text-sm" data-icon="chevron_left">chevron_left</span>
+                </button>
+                <span class="text-[10px] font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">1</span>
+                <button class="p-1 text-on-surface-variant hover:text-on-surface transition-colors">
+                  <span class="material-symbols-outlined text-sm" data-icon="chevron_right">chevron_right</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- end #view-dashboard -->
+
+        <!-- ══ VIEW: NETWORK MAP ══════════════════════════════════════ -->
+        <div id="view-network-map" class="spa-view">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <p class="text-[10px] tracking-[0.2em] text-outline uppercase mb-1">Active Defense</p>
+                    <h1 class="font-headline text-3xl font-bold tracking-tight text-on-surface">Network Topology Map
+              </h1>
+                    <p class="text-on-surface-variant text-sm mt-1">Real-time packet origin visualization — lines fade
+                for normal traffic, persist red for threats.</p>
+                  </div>
+                <button id="map-clear-btn"
+              class="px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-sm font-medium rounded-md transition-all flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">refresh</span> Clear Map
+                  </button>
+              </div>
+            <div class="bg-surface-container-low rounded-xl p-4">
+                <canvas id="net-map-canvas"></canvas>
+                <div class="map-legend">
+                    <span><span class="dot" style="background:#88c0d0"></span>Normal Traffic</span>
+                    <span><span class="dot" style="background:#ffb4ab"></span>Threat / Anomaly</span>
+                    <span><span class="dot" style="background:#ffffff"></span>Local Host</span>
+                    <span style="margin-left:auto;font-family:monospace" id="map-packet-count">0 packets
+                visualized</span>
+                  </div>
+              </div>
+        </div>
+
+        <!-- ══ VIEW: TRAFFIC LOGS ════════════════════════════════════ -->
+        <div id="view-traffic-logs" class="spa-view">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <p class="text-[10px] tracking-[0.2em] text-outline uppercase mb-1">Forensics</p>
+                    <h1 class="font-headline text-3xl font-bold tracking-tight text-on-surface">Traffic Logs</h1>
+                    <p class="text-on-surface-variant text-sm mt-1">Last 100 captured network events — filter and search
+                in real time.</p>
+                  </div>
+                <button id="logs-refresh-btn"
+              class="px-4 py-2 nord-gradient-primary text-on-primary text-sm font-bold rounded-md transition-all flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">sync</span> Refresh
+                  </button>
+              </div>
+            <div class="bg-surface-container-low rounded-xl overflow-hidden">
+                <div class="logs-filter-bar">
+                    <input id="filter-ip" type="text" placeholder="Search Source IP…" style="width:180px">
+                    <select id="filter-proto">
+                        <option value="">All Protocols</option>
+                        <option value="TCP">TCP</option>
+                        <option value="UDP">UDP</option>
+                        <option value="ICMP">ICMP</option>
+                      </select>
+                    <label><input id="filter-anomaly" type="checkbox"> Anomalies Only</label>
+                    <span id="logs-count-label"
+                style="margin-left:auto;font-size:0.68rem;color:#40484b;font-family:monospace">— entries</span>
+                  </div>
+                <div style="overflow-x:auto">
+                    <table class="logs-tbl">
+                        <thead>
+                  <tr>
+                              <th>Timestamp</th>
+                    <th>Source IP</th>
+                    <th>Protocol</th>
+                              <th>Port</th>
+                    <th>Classification</th>
+                    <th>Confidence</th>
+                           
+                  </tr>
+                </thead>
+                        <tbody id="logs-tbody">
+                            <tr>
+                    <td colspan="6" style="text-align:center;padding:2rem;color:#40484b;font-size:0.8rem">Loading…</td>
+                  </tr>
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+        </div>
+
+        <!-- ══ VIEW: VAULT ══════════════════════════════════════════ -->
+        <div id="view-vault" class="spa-view">
+            <div class="mb-6">
+                <p class="text-[10px] tracking-[0.2em] text-outline uppercase mb-1">Secure Storage</p>
+                <h1 class="font-headline text-3xl font-bold tracking-tight text-on-surface">Vault</h1>
+                <p class="text-on-surface-variant text-sm mt-1">Isolated capture files and automated threat reports.
+              Access is logged.</p>
+              </div>
+            <div class="vault-grid">
+                <!-- Isolated PCAPs -->
+                <div class="vault-section">
+                    <div class="vault-section-header">
+                        <span class="material-symbols-outlined">wifi_tethering_error</span>
+                        <span class="vault-section-title">Isolated PCAP Files</span>
+                      </div>
+                    <div class="vault-file-list" id="vault-pcap-list"></div>
+                  </div>
+                <!-- Threat Reports -->
+                <div class="vault-section">
+                    <div class="vault-section-header">
+                        <span class="material-symbols-outlined">summarize</span>
+                        <span class="vault-section-title">Automated Threat Reports</span>
+                      </div>
+                    <div class="vault-file-list" id="vault-report-list"></div>
+                  </div>
+              </div>
+        </div><!-- end #view-vault -->
+      </div><!-- end #page-dashboard -->
+
+      <!-- ══ TOP-LEVEL ROUTE: ANALYTICS ════════════════════════════ -->
+      <div id="page-analytics" class="route-page">
+          <div class="mb-6">
+              <h1 class="font-headline text-3xl font-bold tracking-tight text-on-surface">Analytics Engine</h1>
+              <p class="text-on-surface-variant text-sm mt-1">Deep-dive metrics and machine learning model insights.</p>
+            </div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <div class="bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+                  <h3 class="text-xs uppercase tracking-widest text-outline mb-2">Accuracy</h3>
+                  <div id="metric-accuracy" class="text-3xl font-bold text-teal-400 font-mono">--%</div>
+                </div>
+              <div class="bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+                  <h3 class="text-xs uppercase tracking-widest text-outline mb-2">Precision</h3>
+                  <div id="metric-precision" class="text-3xl font-bold text-teal-400 font-mono">--%</div>
+                </div>
+              <div class="bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+                  <h3 class="text-xs uppercase tracking-widest text-outline mb-2">Recall</h3>
+                  <div id="metric-recall" class="text-3xl font-bold text-teal-400 font-mono">--%</div>
+                </div>
+              <div class="bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+                  <h3 class="text-xs uppercase tracking-widest text-outline mb-2">F1-Score</h3>
+                  <div id="metric-f1" class="text-3xl font-bold text-teal-400 font-mono">--%</div>
+                </div>
+            </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+                  <div class="flex items-center gap-2 mb-4 group relative w-max">
+                      <h2 class="font-headline text-sm font-semibold tracking-tight text-on-surface">Top Threat
+                Indicators (Feature Importance)</h2>
+                      <span
+                class="material-symbols-outlined text-outline-variant text-[16px] cursor-help hover:text-primary transition-colors">info</span>
+                      <!-- Tooltip -->
+                      <div
+                class="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block w-56 bg-surface-container-highest text-on-surface-variant text-[11px] p-2 rounded-md shadow-2xl border border-outline-variant/10 z-50 pointer-events-none">
+                          These are the primary variables our Random Forest model uses to distinguish attacks from
+                normal traffic.
+                        </div>
+                    </div>
+                  <div class="h-64 relative w-full">
+                      <canvas id="featureChart"></canvas>
+                    </div>
+                </div>
+              
+              <div class="bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+                  <h2 class="font-headline text-sm font-semibold tracking-tight text-on-surface mb-4">Model Confusion
+              Matrix</h2>
+                  <div class="grid grid-cols-2 gap-4 h-64">
+                      <div
+                class="bg-[#1a202b] rounded-lg border border-teal-400/30 flex flex-col justify-center items-center">
+                          <span class="text-[10px] text-outline uppercase tracking-widest">True Positive</span>
+                          <span id="cm-tp" class="text-4xl font-mono text-teal-400 font-bold mt-1">--</span>
+                        </div>
+                      <div
+                class="bg-[#1a202b] rounded-lg border border-red-400/30 flex flex-col justify-center items-center">
+                          <span class="text-[10px] text-outline uppercase tracking-widest">False Positive</span>
+                          <span id="cm-fp" class="text-4xl font-mono text-error font-bold mt-1">--</span>
+                        </div>
+                      <div
+                class="bg-[#1a202b] rounded-lg border border-red-400/30 flex flex-col justify-center items-center">
+                          <span class="text-[10px] text-outline uppercase tracking-widest">False Negative</span>
+                          <span id="cm-fn" class="text-4xl font-mono text-error font-bold mt-1">--</span>
+                        </div>
+                      <div
+                class="bg-[#1a202b] rounded-lg border border-teal-400/30 flex flex-col justify-center items-center">
+                          <span class="text-[10px] text-outline uppercase tracking-widest">True Negative</span>
+                          <span id="cm-tn" class="text-4xl font-mono text-teal-400 font-bold mt-1">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+      </div>
+
+      <!-- ══ TOP-LEVEL ROUTE: NODES ════════════════════════════════ -->
+      <div id="page-nodes" class="route-page">
+          <div class="mb-6">
+              <h1 class="font-headline text-3xl font-bold tracking-tight text-on-surface">Distributed Nodes</h1>
+              <p class="text-on-surface-variant text-sm mt-1">Status and metrics for all connected NIDS sensors.</p>
+            </div>
+          <div class="bg-surface-container-low rounded-xl overflow-hidden border border-outline-variant/10">
+              <div style="overflow-x:auto">
+                  <table class="logs-tbl w-full">
+                      <thead>
+                          <tr>
+                              <th>Status</th>
+                              <th>Node Name</th>
+                              <th>IP Address</th>
+                              <th>OS/Kernel</th>
+                              <th>Latency</th>
+                              <th>Uptime</th>
+                            </tr>
+                        </thead>
+                      <tbody id="nodes-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+      </div>
+
+      <!-- ══ TOP-LEVEL ROUTE: SETTINGS ═════════════════════════════ -->
+      <div id="page-settings" class="route-page">
+          <div class="mb-6">
+              <h1 class="font-headline text-3xl font-bold tracking-tight text-on-surface">Settings</h1>
+              <p class="text-on-surface-variant text-sm mt-1">Configure global NIDS parameters and machine learning
+            thresholds.</p>
+            </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <!-- ML Section -->
+              <div class="bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+                  <div class="flex items-center gap-2 mb-4">
+                      <span class="material-symbols-outlined text-primary">psychology</span>
+                      <h2 class="font-headline text-sm font-semibold tracking-tight text-on-surface">Machine Learning
+              </h2>
+                    </div>
+                  <div class="space-y-4">
+                      <div>
+                          <label class="flex justify-between text-xs text-on-surface-variant mb-2">
+                              <span>Alert Confidence Threshold</span>
+                              <span id="threshold-val" class="font-mono text-primary font-bold">85%</span>
+                            </label>
+                          <input id="setting-threshold" type="range" min="0" max="100" value="85"
+                  class="w-full h-1 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary"
+                  oninput="document.getElementById('threshold-val').textContent=this.value+'%'">
+                          <p class="text-[10px] text-outline-variant mt-2">Packets with an anomaly confidence below this
+                  threshold will be flagged as Monitored, but will not trigger critical alerts.</p>
+                        </div>
+                    </div>
+                </div>
+
+              <!-- Active Defense Section -->
+              <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 shadow-lg backdrop-blur-sm">
+                    <div class="flex items-center mb-6">
+                          <svg class="w-5 h-5 text-teal-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+                </path>
+              </svg>
+                          <h3 class="text-slate-200 font-semibold text-lg tracking-wide">Active Defense (IPS)</h3>
+                      </div>
+                    
+                    <div class="space-y-6">
+                          <div class="flex items-center justify-between">
+                                <div>
+                                      <p class="text-slate-200 font-medium text-sm">Enable Auto-Block</p>
+                                      <p class="text-slate-500 text-xs mt-1">Automatically deploy firewall rules for
+                    high-confidence threats.</p>
+                                  </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                      <input type="checkbox" id="setting-autoblock" class="sr-only peer">
+                                      <div
+                    class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500">
+                  </div>
+                                  </label>
+                            </div>
+
+                          <div class="flex items-center justify-between">
+                                <div>
+                                      <p class="text-slate-200 font-medium text-sm">Critical Audio Alarms</p>
+                                      <p class="text-slate-500 text-xs mt-1">Play an audible warning when the threshold
+                    is breached.</p>
+                                  </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                      <input type="checkbox" id="setting-audio" class="sr-only peer">
+                                      <div
+                    class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500">
+                  </div>
+                                  </label>
+                            </div>
+                      </div>
+                </div>
+
+              <!-- Data Mgt Section -->
+              <div class="bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+                  <div class="flex items-center gap-2 mb-4">
+                      <span class="material-symbols-outlined text-primary">database</span>
+                      <h2 class="font-headline text-sm font-semibold tracking-tight text-on-surface">Data Management
+              </h2>
+                    </div>
+                  <div class="space-y-4">
+                      <div>
+                          <label class="block text-xs text-on-surface-variant mb-2">Log Retention Policy</label>
+                          <select
+                  class="w-full bg-[#080e19] border border-outline-variant/25 rounded p-2 text-sm text-dde2f2 outline-none focus:border-primary transition-colors cursor-pointer">
+                              <option value="7">7 Days</option>
+                              <option value="30" selected>30 Days</option>
+                              <option value="90">90 Days</option>
+                              <option value="unlimited">Unlimited (Not Recommended)</option>
+                            </select>
+                          <p class="text-[10px] text-outline-variant mt-2">Threat logs older than the designated
+                  timeframe will be automatically archived and compressed.</p>
+                        </div>
+                    </div>
+                </div>
+              <!-- Actions -->
+              <div class="lg:col-span-3 flex justify-end">
+                  <button id="save-settings-btn"
+              class="bg-teal-400 hover:bg-teal-300 text-slate-900 font-bold py-2 px-6 rounded-lg transition-all cursor-pointer z-[60] relative mr-16">
+                      Save Changes
+                    </button>
+                </div>
+            </div>
+      </div>
+
+    </div><!-- end .max-w -->
+  </main>
+
+  <!-- ── Deploy Rule Modal ───────────────────────────── -->
+  <div id="modal-overlay">
+      <div id="modal-box">
+          <div class="flex items-center justify-between mb-5">
+              <div>
+                  <p
+            style="font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;color:#a3dcec;font-weight:700;margin-bottom:0.2rem">
+            NIDS RULE ENGINE</p>
+                  <h3 style="font-size:1rem;font-weight:700;color:#dde2f2">Deploy New Intrusion Rule</h3>
+                </div>
+              <button id="modal-close-x"
+          style="background:none;border:none;cursor:pointer;color:#8a9295;font-size:1.1rem;line-height:1"
+          title="Close">&times;</button>
+            </div>
+          <div style="display:flex;flex-direction:column;gap:1rem">
+              <div>
+                  <label for="modal-ip">Target IP Address</label>
+                  <input id="modal-ip" type="text" placeholder="e.g. 192.168.1.42 or 0.0.0.0/0" />
+                </div>
+              <div>
+                  <label for="modal-action">Action</label>
+                  <select id="modal-action">
+                      <option value="Block">Block — Drop all packets from this source</option>
+                      <option value="Monitor">Monitor — Log all activity (no block)</option>
+                      <option value="Throttle">Throttle — Rate-limit to 10 kbps</option>
+                    </select>
+                </div>
+              <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:0.5rem">
+                  <button id="modal-cancel"
+            style="padding:0.5rem 1.1rem;background:transparent;border:1px solid rgba(64,72,75,0.25);border-radius:0.25rem;color:#8a9295;font-size:0.78rem;cursor:pointer;font-family:inherit;transition:background 0.15s"
+            onmouseover="this.style.background='rgba(64,72,75,0.12)'"
+            onmouseout="this.style.background='transparent'">Cancel</button>
+                  <button id="modal-execute"
+            style="padding:0.5rem 1.25rem;background:linear-gradient(135deg,#a3dcec,#88c0d0);border:none;border-radius:0.25rem;color:#0d131e;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity 0.15s">Execute</button>
+                </div>
+            </div>
+        </div>
+  </div>
+
+  <!-- ── Intrusion Rules Panel ─────────────────────────── -->
+  <div id="rules-panel">
+      <div id="rules-panel-box">
+          <!-- Header -->
+          <div
+        style="display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid rgba(64,72,75,0.12)">
+              <div>
+                  <p
+            style="font-size:0.58rem;letter-spacing:0.14em;text-transform:uppercase;color:#a3dcec;font-weight:700;margin-bottom:0.15rem">
+            ACTIVE DEFENSE MODULE</p>
+                  <h3 style="font-size:0.95rem;font-weight:700;color:#dde2f2;margin:0">Intrusion Rules</h3>
+                </div>
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                  <span id="rules-count-badge"
+            style="font-size:0.65rem;font-family:monospace;background:rgba(163,220,236,0.1);color:#a3dcec;padding:0.2rem 0.65rem;border-radius:0.25rem">0
+            active</span>
+                  <button id="rules-panel-close"
+            style="background:none;border:none;cursor:pointer;color:#8a9295;font-size:1.1rem;line-height:1"
+            title="Close">&times;</button>
+                </div>
+            </div>
+          <!-- Table -->
+          <div id="rules-table-wrap">
+              <table class="rules-tbl">
+                  <thead>
+                      <tr>
+                          <th>#</th>
+                          <th>Target IP</th>
+                          <th>Action</th>
+                          <th>Deployed At</th>
+                          <th style="text-align:right">Revoke</th>
+                        </tr>
+                    </thead>
+                  <tbody id="rules-tbody">
+                      <tr id="rules-empty-row">
+                          <td colspan="5" style="text-align:center;color:#40484b;padding:2.5rem;font-size:0.78rem">No
+                active rules. Deploy one using the &ldquo;Deploy Rule&rdquo; button.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+  </div>
+
+  <!-- ── Toast Container ───────────────────────────────── -->
+  <div id="toast-container"></div>
+  <!-- Floating System Utility -->
+  <div class="fixed bottom-6 right-6 flex flex-col gap-3 items-end z-50 pointer-events-none">
+    <div id="live-console-widget"
+      class="glass-panel p-4 rounded-xl shadow-2xl border border-outline-variant/10 min-w-[220px] hidden md:block transition-all duration-300 ease-in-out pointer-events-auto">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-primary text-sm" data-icon="terminal">terminal</span>
+        <span class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Live Console</span>
+      </div>
+      <!-- ══ LIVE CONSOLE — prepended by WebSocket JS ══ -->
+      <div id="live-console" class="space-y-1 font-mono text-[9px] max-h-20 overflow-y-auto flex flex-col-reverse">
+        <p class="text-primary">&gt; NODE_01 heartbeat confirmed [0ms]</p>
+        <p class="text-on-surface-variant">&gt; System state synced to secondary core</p>
+        <p class="text-on-surface-variant">&gt; Awaiting WebSocket stream…</p>
+      </div>
+    </div>
+    <button id="toggle-console-btn"
+      class="w-12 h-12 rounded-full nord-gradient-primary text-on-primary shadow-xl shadow-primary/20 flex items-center justify-center hover:scale-105 transition-all duration-300 active:scale-95 pointer-events-auto">
+      <span class="material-symbols-outlined" data-icon="bolt">bolt</span>
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+     WEBSOCKET + LIVE CHART ENGINE
+     ══════════════════════════════════════════════════════════ -->
+  <script>
+    let currentSettings = { confidence_threshold: 85, auto_block: false, audio_alerts: false };
+    // ════════════════════════════════════════════════════════════
+    // SPA TOP-LEVEL ROUTER (History API)
+    // ════════════════════════════════════════════════════════════
+
+    const TOP_ROUTES = ['page-dashboard', 'page-analytics', 'page-nodes', 'page-settings', 'view-vault'];
+
+    function renderRoute(path) {
+      if (!path) path = window.location.pathname;
+
+      let targetPage = 'page-dashboard'; // default
+      if (path.includes('/analytics')) targetPage = 'page-analytics';
+      else if (path.includes('/nodes')) targetPage = 'page-nodes';
+      else if (path.includes('/vault')) targetPage = 'view-vault'; // Note: 'view-vault' is the ID for vault
+      else if (path.includes('/settings')) targetPage = 'page-settings';
+
+      // Hide all top-level routes
+      TOP_ROUTES.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+      });
+
+      // Show target top-level route
+      const targetEl = document.getElementById(targetPage);
+      if (targetEl) {
+        requestAnimationFrame(() => targetEl.classList.add('active'));
+      }
+
+      // Update top nav active styling
+      const navLinks = document.querySelectorAll('.top-nav-link');
+      navLinks.forEach(link => {
+        const isMatch = link.dataset.route && path.startsWith(link.dataset.route)
+          && (link.dataset.route !== '/' || path === '/');
+
+        if (isMatch) {
+          link.classList.remove('text-slate-400', 'dark:text-[#40484b]', 'border-transparent');
+          link.classList.add('text-cyan-400', 'dark:text-[#a3dcec]', 'border-cyan-400', 'dark:border-[#a3dcec]');
+        } else {
+          link.classList.add('text-slate-400', 'dark:text-[#40484b]', 'border-transparent');
+          link.classList.remove('text-cyan-400', 'dark:text-[#a3dcec]', 'border-cyan-400', 'dark:border-[#a3dcec]');
+        }
+      });
+
+      // Fire Analytics specific loading if needed
+      if (path.includes('/analytics')) {
+        appendConsoleLine('NAV: Analytics Engine initialised.', 'text-primary');
+        loadAnalytics(); // Initial load
+        
+        // Start live polling if not already started
+        if (!analyticsInterval) {
+           analyticsInterval = setInterval(loadAnalytics, 2000);
+        }
+      } else {
+        // Halt polling when leaving the analytics route to save resources
+        if (analyticsInterval) {
+           clearInterval(analyticsInterval);
+           analyticsInterval = null;
+        }
+      }
+    }
+
+    let analyticsInterval = null;
+    let featureChartInstance = null;
+    
+    async function loadAnalytics() {
+      try {
+        const metricsRes = await fetch('/api/analytics/metrics');
+        const metrics = await metricsRes.json();
+
+        document.getElementById('metric-accuracy').textContent = metrics.accuracy + '%';
+        document.getElementById('metric-precision').textContent = metrics.precision + '%';
+        document.getElementById('metric-recall').textContent = metrics.recall + '%';
+        document.getElementById('metric-f1').textContent = metrics.f1_score + '%';
+
+        document.getElementById('cm-tp').textContent = metrics.confusion_matrix.tp;
+        document.getElementById('cm-fp').textContent = metrics.confusion_matrix.fp;
+        document.getElementById('cm-fn').textContent = metrics.confusion_matrix.fn;
+        document.getElementById('cm-tn').textContent = metrics.confusion_matrix.tn;
+
+        const featuresRes = await fetch('/api/analytics/features');
+        const features = await featuresRes.json();
+
+        const labels = features.map(f => f.feature);
+        const data = features.map(f => f.importance);
+
+        if (featureChartInstance) {
+          featureChartInstance.data.labels = labels;
+          featureChartInstance.data.datasets[0].data = data;
+          featureChartInstance.update();
+        } else {
+          const ctx = document.getElementById('featureChart').getContext('2d');
+          featureChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Importance',
+                data: data,
+                backgroundColor: '#2DD4BF',
+                borderWidth: 0,
+                barThickness: 20
+              }]
+            },
+            options: {
+              indexAxis: 'y',
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: false, // Smooth live updates without bounce
+              plugins: {
+                legend: { display: false }
+              },
+              scales: {
+                x: {
+                  grid: { color: 'rgba(64, 72, 75, 0.2)' },
+                  ticks: { color: '#8a9295', font: { family: 'monospace' } }
+                },
+                y: {
+                  grid: { display: false },
+                  ticks: { color: '#dde2f2', font: { family: 'monospace' } }
+                }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load analytics:', err);
+      }
+    }
+
+    // Intercept clicks on links with data-route attr
+    document.querySelectorAll('a[data-route]').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const route = link.dataset.route;
+        history.pushState(null, '', route);
+        renderRoute(route);
+      });
+    });
+
+    // Handle browser Back/Forward 
+    window.addEventListener('popstate', () => {
+      renderRoute();
+    });
+
+    // Initial render on page load
+    renderRoute();
+
+    // ─── Chart State ───────────────────────────────────────────
+    // We maintain two rolling arrays of y-values (0-200 SVG units,
+    // where 0=top and 200=bottom). The viewBox is 1000×200.
+    // Each new data point shifts all points left by STEP pixels.
+
+    const CHART_W = 1000;
+    const CHART_H = 200;
+    const MAX_POINTS = 60;    // How many data points visible at once
+    const STEP = CHART_W / (MAX_POINTS - 1);   // px between points
+
+    // Rolling history: normalY and threatY store SVG y-values
+    // Normal traffic → maps packet_size (64–65535) → y value 20–180
+    // Threat signal  → flat at 195 normally, spikes up to 80-140 on threat
+    let normalY = Array(MAX_POINTS).fill(130);
+    let threatY = Array(MAX_POINTS).fill(195);
+
+    // Track stats
+    let totalThreats = 0;
+    let totalPackets = 0;
+
+    // DOM references
+    const lineNormal = document.getElementById('chart-line-normal');
+    const fillNormal = document.getElementById('chart-fill-normal');
+    const lineThreat = document.getElementById('chart-line-threat');
+    const fillThreat = document.getElementById('chart-fill-threat');
+    const dotNormal = document.getElementById('chart-dot-normal');
+    const dotThreat = document.getElementById('chart-dot-threat');
+    const statusPill = document.getElementById('ws-status-pill');
+    const statusDot = document.getElementById('ws-status-dot');
+    const statusText = document.getElementById('ws-status-text');
+    const logBody = document.getElementById('threat-log-body');
+    const countLabel = document.getElementById('threat-count-label');
+    const donutCount = document.getElementById('donut-count');
+
+    // ─── Chart Rendering ───────────────────────────────────────
+    function buildPath(yArr, close = false) {
+      if (yArr.length === 0) return '';
+      let d = `M0,${yArr[0] || 0}`;
+      for (let i = 1; i < yArr.length; i++) {
+        const x = i * STEP;
+        const y0 = yArr[i - 1] || 0;
+        const y1 = yArr[i] || 0;
+        // Smooth cardinal spline approximation using quadratic bezier
+        const prevX = (i - 1) * STEP;
+        const midX = (prevX + x) / 2;
+        d += ` Q${midX},${y0} ${x},${y1}`;
+      }
+      if (close) {
+        const lastX = (yArr.length - 1) * STEP;
+        d += ` L${lastX},${CHART_H} L0,${CHART_H} Z`;
+      }
+      return d;
+    }
+
+    function updateChart() {
+      const lineD = buildPath(normalY, false);
+      const fillD = buildPath(normalY, true);
+      const tLineD = buildPath(threatY, false);
+      const tFillD = buildPath(threatY, true);
+
+      lineNormal.setAttribute('d', lineD);
+      fillNormal.setAttribute('d', fillD);
+      lineThreat.setAttribute('d', tLineD);
+      fillThreat.setAttribute('d', tFillD);
+
+      // Move dots to the latest points
+      const lastX = (MAX_POINTS - 1) * STEP;
+      dotNormal.setAttribute('cx', lastX);
+      dotNormal.setAttribute('cy', normalY[normalY.length - 1]);
+      dotThreat.setAttribute('cx', lastX);
+      dotThreat.setAttribute('cy', threatY[threatY.length - 1]);
+    }
+
+    // ─── Status Pill Update ─────────────────────────────────────
+    function setStatus(state) {
+      // state: 'connecting' | 'normal' | 'threat' | 'offline'
+      const configs = {
+        connecting: { dot: '#8a9295', text: '#8a9295', label: 'Connecting…' },
+        normal: { dot: '#a3dcec', text: '#a3dcec', label: 'Monitoring' },
+        threat: { dot: '#ffb4ab', text: '#ffb4ab', label: 'THREAT ACTIVE' },
+        offline: { dot: '#ffb4ab', text: '#ffb4ab', label: 'OFFLINE' },
+      };
+      const c = configs[state] || configs.connecting;
+      statusDot.style.backgroundColor = c.dot;
+      statusText.style.color = c.text;
+      statusText.textContent = c.label;
+    }
+
+    // ─── Threat Log Row Builder ─────────────────────────────────
+    function buildLogRow(pkt) {
+      const isThreat = pkt.prediction === 'THREAT';
+      const confPct = (pkt.confidence * 100).toFixed(1);
+      const barWidth = Math.round(pkt.confidence * 100);
+      const rowClass = isThreat
+        ? 'bg-error/5 border-l-4 border-error group transition-colors hover:bg-error/10'
+        : 'hover:bg-surface-container-highest/30 transition-colors';
+      const tsClass = isThreat ? 'text-error' : 'text-on-surface-variant';
+      const badgeBg = isThreat ? 'bg-error/20 text-error' : 'bg-surface-container-highest text-on-surface-variant';
+      const barColor = isThreat ? 'bg-error' : 'bg-primary';
+
+      const label = pkt.attack_label || (isThreat ? 'Intrusion' : 'Normal');
+
+      const tr = document.createElement('tr');
+      tr.className = rowClass + ' threat-row-new';
+      tr.innerHTML = `
+      <td class="px-6 py-4 text-xs font-mono ${tsClass}">${pkt.timestamp}</td>
+      <td class="px-6 py-4 text-xs font-mono">${pkt.source_ip}</td>
+      <td class="px-6 py-4 text-xs font-mono">${pkt.target_port}</td>
+      <td class="px-6 py-4">
+        <span class="px-2 py-0.5 ${badgeBg} text-[10px] font-bold rounded uppercase tracking-tighter">${label}</span>
+      </td>
+      <td class="px-6 py-4">
+        <div class="flex items-center gap-3">
+          <div class="w-24 bg-surface-container-highest h-1 rounded-full overflow-hidden">
+            <div class="${barColor} h-full" style="width:${barWidth}%"></div>
+          </div>
+          <span class="text-[10px] font-mono">${confPct}%</span>
+        </div>
+      </td>
+      <td class="px-6 py-4 text-right">
+        <button class="p-1 hover:bg-surface-container-highest rounded text-on-surface-variant">
+          <span class="material-symbols-outlined text-sm">more_vert</span>
+        </button>
+      </td>
+    `;
+      return tr;
+    }
+
+    // Keep log table capped at N rows
+    const MAX_LOG_ROWS = 20;
+    function prependLogRow(pkt) {
+      const tr = buildLogRow(pkt);
+      // Remove idle placeholder on first real row
+      const idleRow = logBody.querySelector('tr[data-idle]');
+      if (idleRow) idleRow.remove();
+      logBody.insertBefore(tr, logBody.firstChild);
+      // Cap to MAX_LOG_ROWS
+      while (logBody.rows.length > MAX_LOG_ROWS) {
+        logBody.removeChild(logBody.lastChild);
+      }
+    }
+
+    // ─── Live Console Line Prepend ──────────────────────────────
+    const MAX_CONSOLE_LINES = 5;
+    function appendConsoleLine(text, color = 'text-on-surface-variant') {
+      const console_div = document.getElementById('live-console');
+      if (!console_div) return;
+
+      const p = document.createElement('p');
+      p.className = `${color} console-line-new`;
+      p.innerHTML = '&gt; ' + text;
+      // console_div uses flex-col-reverse so prepend = appears at bottom visually
+      console_div.insertBefore(p, console_div.firstChild);
+      while (console_div.children.length > MAX_CONSOLE_LINES) {
+        console_div.removeChild(console_div.lastChild);
+      }
+    }
+
+    // ─── WebSocket Connection ───────────────────────────────────
+    let socket = null;
+    let wsRetry = 0;
+
+    // Mark the idle table row
+    const idleRow = logBody.querySelector('tr');
+    if (idleRow) idleRow.setAttribute('data-idle', '1');
+
+    function connectWebSocket() {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = wsProtocol + '//' + window.location.host + '/ws/traffic';
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        wsRetry = 0;
+        setStatus('normal');
+        appendConsoleLine('WebSocket stream established.', 'text-primary');
+      };
+
+      socket.onmessage = (event) => {
+        let pkt;
+        try { pkt = JSON.parse(event.data); }
+        catch (e) { return; }
+
+        totalPackets++;
+        const isThreat = pkt.prediction === 'THREAT';
+
+        // ── 1. Update Status Pill ──────────────────────────────
+        setStatus(isThreat ? 'threat' : 'normal');
+
+        // ── 2. Update Live Chart ───────────────────────────────
+        // Ensure we pull a valid numerical value natively, fallback to a mocked dimension
+        const pktSize = (pkt.src_bytes !== undefined && pkt.src_bytes !== null)
+          ? pkt.src_bytes
+          : (Math.random() * 50 + 10);
+
+        // Map packet size (64–65535) to SVG y (20–170), inverted (big=low y=higher on chart)
+        const rawSize = Math.min(Math.max(pktSize, 64), 65535);
+        const normVal = (rawSize - 64) / (65535 - 64);        // 0–1
+        const newNormY = 170 - (isNaN(normVal) ? 0 : normVal) * 150;   // 20–170 inverted
+
+        // Threat signal: spike to confidence-driven y when threat, else flat at 192
+        const newThreatY = isThreat
+          ? 192 - ((pkt.confidence || 0) * 100)   // spike height proportional to confidence
+          : 192;
+
+        normalY.push(newNormY);
+        threatY.push(newThreatY);
+        if (normalY.length > MAX_POINTS) normalY.shift();
+        if (threatY.length > MAX_POINTS) threatY.shift();
+
+        updateChart();
+
+        // ── 3. Threat Log & Console ────────────────────────────
+        if (pkt.log_it && (pkt.confidence * 100) >= currentSettings.confidence_threshold) {
+          totalThreats++;
+          donutCount.textContent = totalThreats;
+          countLabel.textContent = `Displaying ${Math.min(totalThreats, MAX_LOG_ROWS)} of ${totalThreats} identified threats`;
+          prependLogRow(pkt);
+
+          // Threat console line
+          let reasonStr = "";
+          if (pkt.reasoning && pkt.reasoning.length > 0) {
+            reasonStr = ` <span class="text-slate-500 opacity-80">(Reason: ${pkt.reasoning.join(", ")})</span>`;
+          }
+          appendConsoleLine(
+            `ALERT: ${pkt.attack_label} from ${pkt.source_ip}:${pkt.target_port} [${(pkt.confidence * 100).toFixed(1)}%]${reasonStr}`,
+            'text-error'
+          );
+
+          if (currentSettings.audio_alerts) {
+            const beep = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU');
+            beep.play().catch(e => { });
+          }
+
+          if (currentSettings.auto_block) {
+            fetch('/api/rules/deploy', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ target_ip: pkt.source_ip, action: 'Auto-Block' })
+            });
+          }
+
+          // Flash status back to normal after 1.5 s if next packet doesn't arrive
+          clearTimeout(socket._resetTimer);
+          socket._resetTimer = setTimeout(() => setStatus('normal'), 1500);
+        } else {
+          // Normal traffic console ping (every ~10 normal packets)
+          if (totalPackets % 10 === 0) {
+            appendConsoleLine(
+              `${pkt.protocol} packet from ${pkt.source_ip} → port ${pkt.target_port} [OK]`,
+              'text-on-surface-variant'
+            );
+          }
+          // Heartbeat every ~30 packets
+          if (totalPackets % 30 === 0) {
+            appendConsoleLine('NODE_01 heartbeat confirmed [0ms]', 'text-primary');
+          }
+        }
+      };
+
+      socket.onclose = (e) => {
+        setStatus('offline');
+        appendConsoleLine('WebSocket disconnected. Retrying…', 'text-error');
+        // Exponential backoff: 1s, 2s, 4s, 8s, max 16s
+        const delay = Math.min(1000 * Math.pow(2, wsRetry), 16000);
+        wsRetry++;
+        setTimeout(connectWebSocket, delay);
+      };
+
+      socket.onerror = () => {
+        setStatus('offline');
+      };
+    }
+
+    function initCharts() {
+      // Pure SVG chart initialization requires initial drawing
+      updateChart();
+      return true;
+    }
+
+    // Boot chart with initial flat lines then connect
+    const charts = initCharts();
+    connectWebSocket();
+
+    // ════════════════════════════════════════════════════════════
+    // UI INTERACTIVITY ENGINE
+    // ════════════════════════════════════════════════════════════
+
+    // ── 1. TOAST NOTIFICATION SYSTEM ────────────────────────
+    const toastContainer = document.getElementById('toast-container');
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = 'toast' + (type === 'error' ? ' error' : '');
+      toast.innerHTML = `<span style="font-family:'JetBrains Mono',monospace;margin-right:0.4em;opacity:0.6">&gt;</span>${message}`;
+      toastContainer.appendChild(toast);
+
+      // Trigger slide-in
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('show'));
+      });
+
+      // Auto-dismiss after 4 s
+      setTimeout(() => {
+        toast.classList.remove('show');
+        toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+      }, 4000);
+    }
+
+    // ── 2. NAV LINK TOAST WIRING ─────────────────────────
+    // "Intrusion Rules" opens the live rules panel;
+    // all other inactive modules show a toast.
+    document.querySelectorAll('a[data-module]').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const mod = link.dataset.module;
+        if (mod === 'Intrusion Rules') {
+          openRulesPanel();
+        } else {
+          showToast(`Module <strong style="color:#dde2f2">${mod}</strong> is currently offline or under construction.`);
+        }
+      });
+    });
+
+    // Active nav links: just prevent default scroll
+    document.querySelectorAll('a[data-active]').forEach(link => {
+      link.addEventListener('click', e => e.preventDefault());
+    });
+
+    // ── 3. DEPLOY RULE MODAL ───────────────────────────
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalIp = document.getElementById('modal-ip');
+    const modalAction = document.getElementById('modal-action');
+    const modalExecute = document.getElementById('modal-execute');
+
+    function openModal() {
+      modalIp.value = '';
+      modalAction.selectedIndex = 0;
+      modalOverlay.classList.add('open');
+      setTimeout(() => modalIp.focus(), 200);
+    }
+
+    function closeModal() {
+      modalOverlay.classList.remove('open');
+    }
+
+    document.getElementById('btn-deploy').addEventListener('click', openModal);
+    document.getElementById('modal-cancel').addEventListener('click', closeModal);
+    document.getElementById('modal-close-x').addEventListener('click', closeModal);
+
+    // Close on overlay click (outside the box)
+    modalOverlay.addEventListener('click', e => {
+      if (e.target === modalOverlay) closeModal();
+    });
+
+    // Keyboard: Escape closes
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && modalOverlay.classList.contains('open')) closeModal();
+    });
+
+    // Execute button — POSTs to backend /api/rules/deploy
+    modalExecute.addEventListener('click', async () => {
+      const ip = modalIp.value.trim();
+      const action = modalAction.value;
+
+      if (!ip) {
+        showToast('Please enter a Target IP address.', 'error');
+        modalIp.focus();
+        return;
+      }
+
+      // Loading state
+      modalExecute.disabled = true;
+      modalExecute.textContent = 'Deploying…';
+      modalExecute.style.opacity = '0.7';
+
+      try {
+        const res = await fetch('/api/rules/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target_ip: ip, action }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        closeModal();
+
+        // Live Console entry
+        appendConsoleLine(
+          `RULE #${data.rule.id} DEPLOYED: ${action.toUpperCase()} → ${ip}`,
+          'text-primary'
+        );
+
+        // Toast
+        showToast(`Rule Deployed: Traffic from <code style="color:#dde2f2">${ip}</code> is now <strong style="color:#a3dcec">${action.toLowerCase()}ed</strong>.`);
+
+      } catch (err) {
+        showToast(`Deploy failed: ${err.message}`, 'error');
+      } finally {
+        modalExecute.disabled = false;
+        modalExecute.textContent = 'Execute';
+        modalExecute.style.opacity = '1';
+      }
+    });
+
+
+    // ── 5. CONSOLE AUTO-SCROLL ───────────────────────────
+    // The live-console uses `flex-col-reverse` so new entries (prepended via
+    // insertBefore) always appear visually at the bottom of the container.
+    // No scrollTop manipulation is required — the CSS layout handles it.
+    // We switched the div from overflow-hidden to overflow-y-auto above so
+    // users can scroll upward through older entries if they choose.
+
+    // ── 6. INTRUSION RULES PANEL ─────────────────────────
+    const rulesTbody = document.getElementById('rules-tbody');
+    const rulesEmptyRow = document.getElementById('rules-empty-row');
+    const rulesCountBadge = document.getElementById('rules-count-badge');
+
+    function openRulesPanel() {
+      const rulesPanel = document.getElementById('rules-panel');
+      if (rulesPanel) rulesPanel.classList.add('open');
+      fetchActiveRules();
+    }
+
+    function closeRulesPanel() {
+      const rulesPanel = document.getElementById('rules-panel');
+      if (rulesPanel) rulesPanel.classList.remove('open');
+    }
+
+    const rulesPanelCloseBtn = document.getElementById('rules-panel-close');
+    if (rulesPanelCloseBtn) rulesPanelCloseBtn.addEventListener('click', closeRulesPanel);
+
+    document.addEventListener('click', e => {
+      const rulesPanel = document.getElementById('rules-panel');
+      if (rulesPanel && e.target === rulesPanel) closeRulesPanel();
+    });
+
+    document.addEventListener('keydown', e => {
+      const rulesPanel = document.getElementById('rules-panel');
+      if (e.key === 'Escape' && rulesPanel?.classList.contains('open')) closeRulesPanel();
+    });
+
+    function actionBadge(action) {
+      const cls = action === 'Block' ? 'badge-block' : action === 'Monitor' ? 'badge-monitor' : 'badge-throttle';
+      return `<span class="action-badge ${cls}">${action}</span>`;
+    }
+
+    async function fetchActiveRules() {
+      try {
+        const res = await fetch('/api/rules');
+        const data = await res.json();
+        const rules = data.rules || [];
+
+        rulesCountBadge.textContent = `${rules.length} active`;
+
+        // Clear existing dynamic rows (keep empty-row in DOM, just hide it)
+        Array.from(rulesTbody.querySelectorAll('tr[data-rule-id]')).forEach(r => r.remove());
+
+        if (rules.length === 0) {
+          rulesEmptyRow.style.display = '';
+          return;
+        }
+        rulesEmptyRow.style.display = 'none';
+
+        rules.forEach(rule => {
+          const tr = document.createElement('tr');
+          tr.dataset.ruleId = rule.id;
+          tr.innerHTML = `
+          <td class="mono">#${rule.id}</td>
+          <td class="mono">${rule.ip}</td>
+          <td>${actionBadge(rule.action)}</td>
+          <td style="font-size:0.72rem;color:#8a9295">${rule.timestamp}</td>
+          <td style="text-align:right">
+            <button class="revoke-btn" data-id="${rule.id}" data-ip="${rule.ip}">Revoke</button>
+          </td>
+        `;
+          tr.querySelector('.revoke-btn').addEventListener('click', () => revokeRule(rule.id, rule.ip));
+          rulesTbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        showToast('Failed to fetch active rules: ' + err.message, 'error');
+      }
+    }
+
+    async function revokeRule(ruleId, ip) {
+      try {
+        const res = await fetch(`/api/rules/${ruleId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        // Animate row out then refresh
+        const row = rulesTbody.querySelector(`tr[data-rule-id="${ruleId}"]`);
+        if (row) {
+          row.style.transition = 'opacity 0.25s, transform 0.25s';
+          row.style.opacity = '0';
+          row.style.transform = 'translateX(20px)';
+          setTimeout(() => fetchActiveRules(), 280);
+        } else {
+          fetchActiveRules();
+        }
+
+        appendConsoleLine(`RULE #${ruleId} REVOKED: ${ip} unblocked`, 'text-primary');
+        showToast(`Rule #${ruleId} revoked — <code style="color:#dde2f2">${ip}</code> is no longer blocked.`);
+
+      } catch (err) {
+        showToast('Revoke failed: ' + err.message, 'error');
+      }
+    }
+
+
+    // ════════════════════════════════════════════════════════════
+    // §7. SPA ROUTER
+    // ════════════════════════════════════════════════════════════
+
+    const ALL_VIEWS = ['view-dashboard', 'view-network-map', 'view-traffic-logs', 'view-vault'];
+    const ALL_NAV_LINKS2 = document.querySelectorAll('aside nav a[data-view]');
+
+    function switchView(viewId, onShow) {
+      ALL_VIEWS.forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('active'); });
+      const target = document.getElementById(viewId);
+      if (target) { requestAnimationFrame(() => { target.classList.add('active'); if (onShow) onShow(); }); }
+      ALL_NAV_LINKS2.forEach(link => {
+        const active = link.dataset.view === viewId;
+        link.classList.toggle('bg-[#1a202b]', active);
+        link.classList.toggle('text-cyan-400', active);
+        link.classList.toggle('dark:text-[#a3dcec]', active);
+        link.classList.toggle('rounded-md', active);
+        link.classList.toggle('text-slate-500', !active);
+        link.classList.toggle('dark:text-[#40484b]', !active);
+      });
+    }
+
+    document.querySelectorAll('a[data-view]').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const v = link.dataset.view;
+        if (v === 'view-network-map') switchView(v, initNetworkMap);
+        else if (v === 'view-traffic-logs') switchView(v, fetchLogs);
+        else if (v === 'view-vault') switchView(v, initVault);
+        else switchView(v);
+      });
+    });
+
+    // ════════════════════════════════════════════════════════════
+    // §8. NETWORK MAP — HTML5 Canvas
+    // ════════════════════════════════════════════════════════════
+
+    const _canvas = document.getElementById('net-map-canvas');
+    const _ctx = _canvas.getContext('2d');
+    let mapPkts = 0;
+    let mapLines = [];
+    let mapAnimId = null;
+    let mapOn = false;
+    const IP_POS = {};
+
+    function resizeCanvas() {
+      const r = _canvas.parentElement.getBoundingClientRect();
+      _canvas.width = r.width - 32; _canvas.height = 480;
+    }
+
+    function ipToAngle(ip) {
+      let h = 0; for (const c of ip) h = ((h << 5) - h) + c.charCodeAt(0);
+      return (h >>> 0) % 360;
+    }
+
+    function getIPPos(ip) {
+      if (IP_POS[ip]) return IP_POS[ip];
+      const cx = _canvas.width / 2, cy = _canvas.height / 2;
+      const r = Math.min(cx, cy) * 0.72;
+      const a = (ipToAngle(ip) * Math.PI) / 180;
+      IP_POS[ip] = { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+      return IP_POS[ip];
+    }
+
+    function drawMapFrame() {
+      if (!mapOn) return;
+      const cx = _canvas.width / 2, cy = _canvas.height / 2;
+      _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+      _ctx.fillStyle = 'rgba(64,72,75,0.18)';
+      for (let x = 0; x < _canvas.width; x += 40)
+        for (let y = 0; y < _canvas.height; y += 40)
+          _ctx.fillRect(x, y, 1, 1);
+
+      mapLines = mapLines.filter(l => l.alpha > 0.01);
+      mapLines.forEach(l => {
+        _ctx.beginPath(); _ctx.moveTo(l.x1, l.y1); _ctx.lineTo(cx, cy);
+        if (l.threat) {
+          _ctx.strokeStyle = `rgba(255,180,171,${l.alpha})`;
+          _ctx.lineWidth = 1.5;
+          _ctx.shadowColor = `rgba(255,80,80,${l.alpha * 0.8})`;
+          _ctx.shadowBlur = 10;
+          l.alpha -= 0.003;
+        } else {
+          _ctx.strokeStyle = `rgba(136,192,208,${l.alpha})`;
+          _ctx.lineWidth = 0.8; _ctx.shadowBlur = 0; l.alpha -= 0.022;
+        }
+        _ctx.stroke(); _ctx.shadowBlur = 0;
+        _ctx.beginPath(); _ctx.arc(l.x1, l.y1, 3, 0, Math.PI * 2);
+        _ctx.fillStyle = l.threat ? `rgba(255,180,171,${Math.min(l.alpha * 2, 1)})` :
+          `rgba(136,192,208,${Math.min(l.alpha * 2, 1)})`;
+        _ctx.fill();
+        if (l.alpha > 0.35) {
+          _ctx.font = '9px monospace';
+          _ctx.fillStyle = l.threat ? `rgba(255,180,171,${l.alpha})` : `rgba(136,192,208,${l.alpha * 0.85})`;
+          _ctx.fillText(l.label, l.x1 + 6, l.y1 - 4);
+        }
+      });
+
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 600);
+      _ctx.beginPath(); _ctx.arc(cx, cy, 18 + pulse * 4, 0, Math.PI * 2);
+      _ctx.fillStyle = 'rgba(163,220,236,0.04)'; _ctx.fill();
+      _ctx.beginPath(); _ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+      _ctx.fillStyle = '#ffffff';
+      _ctx.shadowColor = `rgba(255,255,255,${0.4 + pulse * 0.4})`; _ctx.shadowBlur = 14;
+      _ctx.fill(); _ctx.shadowBlur = 0;
+      _ctx.font = '8px monospace'; _ctx.fillStyle = '#8a9295';
+      _ctx.textAlign = 'center'; _ctx.fillText('LOCAL HOST', cx, cy + 26); _ctx.textAlign = 'left';
+      mapAnimId = requestAnimationFrame(drawMapFrame);
+    }
+
+    function drawConnection(ip, isThreat) {
+      if (!mapOn || !ip) return;
+      const pos = getIPPos(ip);
+      mapLines.push({ x1: pos.x, y1: pos.y, alpha: isThreat ? 1.0 : 0.55, threat: isThreat, label: ip });
+      mapPkts++;
+      const el = document.getElementById('map-packet-count');
+      if (el) el.textContent = mapPkts + ' packets visualized';
+    }
+
+    function initNetworkMap() {
+      if (mapOn) return;
+      mapOn = true;
+      Object.keys(IP_POS).forEach(k => delete IP_POS[k]);
+      resizeCanvas();
+      if (mapAnimId) cancelAnimationFrame(mapAnimId);
+      drawMapFrame();
+    }
+
+    document.getElementById('map-clear-btn').addEventListener('click', () => {
+      mapLines = []; mapPkts = 0;
+      const el = document.getElementById('map-packet-count');
+      if (el) el.textContent = '0 packets visualized';
+    });
+
+    function hookMapOnWS() {
+      if (!socket) { setTimeout(hookMapOnWS, 300); return; }
+      const orig = socket.onmessage;
+      socket.onmessage = function (ev) {
+        if (orig) orig.call(this, ev);
+        try { const p = JSON.parse(ev.data); drawConnection(p.source_ip, p.prediction === 'THREAT'); } catch (e) { }
+      };
+    }
+    setTimeout(hookMapOnWS, 900);
+
+    // ════════════════════════════════════════════════════════════
+    // §9. TRAFFIC LOGS
+    // ════════════════════════════════════════════════════════════
+
+    let allLogs = [];
+
+    async function fetchLogs() {
+      const tbody = document.getElementById('logs-tbody');
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#40484b">Fetching...</td></tr>';
+      try {
+        const res = await fetch('/api/logs');
+        const data = await res.json();
+        allLogs = data.logs || [];
+        filterLogs();
+        appendConsoleLine('TRAFFIC LOGS: ' + allLogs.length + ' entries loaded', 'text-primary');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#ffb4ab">Error: ' + err.message + '</td></tr>';
+      }
+    }
+
+    function filterLogs() {
+      const ipQ = (document.getElementById('filter-ip').value || '').trim().toLowerCase();
+      const protoQ = document.getElementById('filter-proto').value;
+      const anomaly = document.getElementById('filter-anomaly').checked;
+      const filtered = allLogs.filter(e => {
+        if (ipQ && !e.source_ip.toLowerCase().includes(ipQ)) return false;
+        if (protoQ && e.protocol !== protoQ) return false;
+        if (anomaly && e.prediction !== 'THREAT') return false;
+        return true;
+      });
+      const tbody = document.getElementById('logs-tbody');
+      const label = document.getElementById('logs-count-label');
+      label.textContent = filtered.length + ' / ' + allLogs.length + ' entries';
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#40484b;font-size:0.8rem">No matching entries.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = filtered.map(function (e) {
+        const isThreat = e.prediction === 'THREAT';
+        const confPct = (e.confidence * 100).toFixed(1) + '%';
+        const rowStyle = isThreat ? 'border-left:3px solid rgba(255,180,171,0.6);background:rgba(255,180,171,0.03)' : '';
+        return '<tr style="' + rowStyle + '">' +
+          '<td class="mono">' + e.timestamp + '</td>' +
+          '<td class="mono">' + e.source_ip + '</td>' +
+          '<td class="mono">' + e.protocol + '</td>' +
+          '<td class="mono">' + e.target_port + '</td>' +
+          '<td><span class="' + (isThreat ? 'pred-threat' : 'pred-normal') + '">' + e.attack_label + '</span></td>' +
+          '<td class="mono">' + confPct + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    document.getElementById('logs-refresh-btn').addEventListener('click', fetchLogs);
+    ['filter-ip', 'filter-proto', 'filter-anomaly'].forEach(function (id) {
+      document.getElementById(id).addEventListener('input', filterLogs);
+    });
+
+    // ════════════════════════════════════════════════════════════
+    // §10. VAULT
+    // ════════════════════════════════════════════════════════════
+
+    var VAULT_PCAPS = [
+      {
+        name: 'Attack_Trace_192.168.1.44.pcap', size: '2.4 MB', date: '2026-03-21 08:14 UTC', ext: 'pcap',
+        content: 'PCAP CAPTURE: Attack_Trace_192.168.1.44\nProtocol: TCP SYN Flood\nDuration: 312s\nPackets: 48291\n[BINARY DATA OMITTED - DEMO FILE]'
+      },
+      {
+        name: 'Brute_Force_45.22.190.11.pcap', size: '1.1 MB', date: '2026-03-21 11:02 UTC', ext: 'pcap',
+        content: 'PCAP CAPTURE: SSH Brute Force from 45.22.190.11\nAttempts: 3141, Successful: 0\n[BINARY DATA OMITTED - DEMO FILE]'
+      },
+      {
+        name: 'ICMP_Flood_203.0.113.42.pcap', size: '3.8 MB', date: '2026-03-22 03:55 UTC', ext: 'pcap',
+        content: 'PCAP CAPTURE: ICMP Flood from 203.0.113.42\nPackets/sec: 9200\n[BINARY DATA OMITTED - DEMO FILE]'
+      },
+      {
+        name: 'DNS_Amplification_182.54.12.pcap', size: '0.8 MB', date: '2026-03-22 06:40 UTC', ext: 'pcap',
+        content: 'PCAP CAPTURE: DNS Amplification from 182.54.12.9\nAmplification Factor: 47x\n[BINARY DATA OMITTED - DEMO FILE]'
+      },
+    ];
+    var VAULT_REPORTS = [
+      {
+        name: 'Weekly_Threat_Summary.csv', size: '14 KB', date: '2026-03-22 00:00 UTC', ext: 'csv',
+        content: 'Timestamp,Source IP,Type,Confidence\n2026-03-21 09:14,192.168.1.44,SSH Brute Force,0.97\n2026-03-21 11:02,45.22.190.11,Port Scan,0.89'
+      },
+      {
+        name: 'Daily_Anomaly_Report_20260322.csv', size: '6 KB', date: '2026-03-22 01:00 UTC', ext: 'csv',
+        content: 'Timestamp,Source IP,Attack Label,Action\n2026-03-22 03:55,203.0.113.42,ICMP Flood,BLOCKED\n2026-03-22 06:40,182.54.12.9,DNS Amplification,MONITORED'
+      },
+      {
+        name: 'Threat_Intelligence_Feed.json', size: '28 KB', date: '2026-03-22 06:00 UTC', ext: 'json',
+        content: '{"feed":"NIDS Threat Intelligence","generated":"2026-03-22T06:00:00Z","entries":[{"ip":"203.0.113.42","type":"ICMP Flood","severity":"HIGH"}]}'
+      },
+    ];
+
+    function vaultFileRow(f) {
+      var icon = f.ext === 'pcap' ? 'wifi_tethering_error' : f.ext === 'json' ? 'data_object' : 'table_chart';
+      return '<div class="vault-file-row">' +
+        '<div class="vault-file-info">' +
+        '<span class="material-symbols-outlined vault-file-icon">' + icon + '</span>' +
+        '<div>' +
+        '<div class="vault-file-name">' + f.name + '</div>' +
+        '<div class="vault-file-meta">' + f.size + ' &nbsp;·&nbsp; ' + f.date + '</div>' +
+        '</div>' +
+        '</div>' +
+        '<button class="vault-dl-btn" data-name="' + f.name + '" data-ext="' + f.ext + '" data-content="' + encodeURIComponent(f.content) + '">' +
+        '<span class="material-symbols-outlined" style="font-size:0.85rem;vertical-align:middle">download</span> Download' +
+        '</button>' +
+        '</div>';
+    }
+
+    var vaultInitialized = false;
+    function initVault() {
+      if (vaultInitialized) return;
+      vaultInitialized = true;
+      document.getElementById('vault-pcap-list').innerHTML = VAULT_PCAPS.map(vaultFileRow).join('');
+      document.getElementById('vault-report-list').innerHTML = VAULT_REPORTS.map(vaultFileRow).join('');
+      document.querySelectorAll('.vault-dl-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var name = btn.dataset.name;
+          var content = decodeURIComponent(btn.dataset.content);
+          var ext = btn.dataset.ext;
+          var mime = ext === 'json' ? 'application/json' : ext === 'csv' ? 'text/csv' : 'text/plain';
+          var blob = new Blob([content], { type: mime });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = name;
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+          showToast('Downloaded <strong style="color:#a3dcec">' + name + '</strong>');
+          appendConsoleLine('VAULT: ' + name + ' downloaded', 'text-primary');
+        });
+      });
+    }
+
+    // --- NODE HEARTBEAT LOGIC ---
+    async function fetchNodes() {
+      try {
+        const response = await fetch('/api/nodes');
+        if (!response.ok) return;
+        const nodes = await response.json();
+        const tableBody = document.getElementById('nodes-table-body');
+        if (!tableBody) return;
+
+        tableBody.innerHTML = ''; // Clear current rows
+
+        nodes.forEach(node => {
+          const tr = document.createElement('tr');
+          // Re-apply the Nord Dark table row styling
+          tr.className = 'border-b border-slate-700/50 hover:bg-slate-800/50 transition-colors text-sm';
+          tr.innerHTML = `
+                <td class="py-4 px-6"><span class="inline-block w-2 h-2 rounded-full bg-teal-400 mr-2 shadow-[0_0_8px_rgba(45,212,191,0.6)]"></span></td>
+                <td class="py-4 px-6 font-mono text-slate-200">${node.node_id}</td>
+                <td class="py-4 px-6 font-mono text-slate-400">${node.ip_address}</td>
+                <td class="py-4 px-6 text-slate-400">${node.os_kernel}</td>
+                <td class="py-4 px-6 font-mono text-teal-400">${node.latency}</td>
+                <td class="py-4 px-6 text-slate-400">${node.uptime}</td>
+            `;
+          tableBody.appendChild(tr);
+        });
+      } catch (error) {
+        console.error('Failed to fetch nodes:', error);
+      }
+    }
+
+    // Start the loop safely
+    setInterval(fetchNodes, 5000);
+    // ----------------------------
+
+    // --- TOP THREATS LEADERBOARD UPDATE ---
+    async function updateLeaderboard() {
+      try {
+        const res = await fetch('/api/analytics/top-threats');
+        if (!res.ok) return;
+        const threats = await res.json();
+        const container = document.getElementById('malicious-nodes-list');
+        if (!container || threats.length === 0) return;
+
+        container.innerHTML = '';
+        const maxHits = threats[0].hits || 1;
+
+        threats.forEach((threat, idx) => {
+          const pct = Math.min(100, Math.round((threat.hits / maxHits) * 100));
+
+          let colorClass = 'nord-gradient-primary';
+          if (idx === 1 || pct < 80) colorClass = 'bg-primary/60';
+          if (idx === 2 || pct < 50) colorClass = 'bg-primary/40';
+          if (idx === 3 || pct < 30) colorClass = 'bg-primary/30';
+          if (idx >= 4 || pct < 15) colorClass = 'bg-primary/20';
+
+          container.innerHTML += `
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs font-mono">
+                        <span class="text-on-surface">${threat.ip}</span>
+                        <span class="text-primary">${threat.hits} Hits</span>
+                    </div>
+                    <div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+                        <div class="${colorClass} h-full" style="width: ${pct}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+      } catch (err) {
+        console.error("Failed to update leaderboard", err);
+      }
+    }
+    setInterval(updateLeaderboard, 10000);
+    updateLeaderboard();
+    // ----------------------------
+
+    const consoleWidget = document.getElementById('live-console-widget');
+    const toggleBtn = document.getElementById('toggle-console-btn');
+
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const settings = await res.json();
+        currentSettings = settings;
+
+        const slider = document.getElementById('setting-threshold');
+        const valSpan = document.getElementById('threshold-val');
+        const autoBlock = document.getElementById('setting-autoblock');
+        const audioAlerts = document.getElementById('setting-audio');
+
+        if (slider) {
+          slider.value = settings.confidence_threshold;
+          if (valSpan) valSpan.textContent = settings.confidence_threshold + '%';
+        }
+        if (autoBlock) autoBlock.checked = settings.auto_block;
+        if (audioAlerts) audioAlerts.checked = settings.audio_alerts;
+      } catch (err) {
+        console.error("Failed to load settings", err);
+      }
+    }
+    loadSettings();
+
+    // Remove DOMContentLoaded to ensure immediate binding (script is at EOF)
+    (function initSaveButton() {
+      console.log("Settings Script Loaded. Looking for button...");
+      const saveBtn = document.getElementById('save-settings-btn');
+
+      if (!saveBtn) {
+        console.error("CRITICAL: Save button NOT found in DOM. Check ID!");
+        return;
+      }
+
+      saveBtn.onclick = async function () {
+        console.log("Save button clicked! Gathering data...");
+
+        const threshold = document.getElementById('setting-threshold')?.value || 85;
+        const autoblock = document.getElementById('setting-autoblock')?.checked || false;
+        const audio = document.getElementById('setting-audio')?.checked || false;
+
+        const data = {
+          confidence_threshold: parseInt(threshold),
+          auto_block: autoblock,
+          audio_alerts: audio
+        };
+
+        console.log("Sending to API:", data);
+
+        try {
+          const resp = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+
+          if (resp.ok) {
+            // IMPORTANT: Synchronize the global settings object for the live WebSocket feed
+            if (typeof currentSettings !== 'undefined') {
+              currentSettings = data;
+            }
+
+            saveBtn.innerText = "SAVED ✓";
+            saveBtn.style.background = "#2DD4BF";
+            setTimeout(() => {
+              saveBtn.innerText = "Save Changes";
+              saveBtn.style.background = "";
+            }, 2000);
+            console.log("Settings updated on server and synced to frontend.");
+          } else {
+            console.error("Server rejected settings:", resp.status);
+          }
+        } catch (err) {
+          console.error("Network error during save:", err);
+          saveBtn.innerText = "Error!";
+        }
+      };
+    })();
+
+    if (toggleBtn && consoleWidget) {
+      toggleBtn.addEventListener('click', () => {
+        // Toggle a utility class that hides the console 
+        consoleWidget.classList.toggle('opacity-0');
+        consoleWidget.classList.toggle('pointer-events-none');
+        consoleWidget.classList.toggle('translate-y-4');
+
+        // Optional: Change the button's background color to indicate state
+        toggleBtn.classList.toggle('bg-teal-600');
+        toggleBtn.classList.toggle('bg-slate-700');
+      });
+    }
+
+    // Wrap in DOMContentLoaded to ensure the button exists first
+    document.addEventListener('DOMContentLoaded', () => {
+      const exportBtn = document.getElementById('export-report-btn');
+      if (exportBtn) {
+        exportBtn.onclick = async (e) => {
+          e.preventDefault();
+          console.log("Generating Report...");
+          exportBtn.innerText = "Processing...";
+
+          // Trigger the download
+          window.location.href = '/api/reports/export';
+
+          setTimeout(() => { exportBtn.innerText = "Export Report"; }, 3000);
+        };
+      } else {
+        console.error("Critical: export-report-btn not found in HTML!");
+      }
+    });
+  </script>
+</body>
+
+</html>
