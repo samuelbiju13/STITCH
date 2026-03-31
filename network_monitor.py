@@ -306,47 +306,57 @@ async def traffic_stream(clf, encoders):
 # ──────────────────────────────────────────────────────────────
 # LIVE KALI INFERENCE BRIDGE
 # ──────────────────────────────────────────────────────────────
-def process_live_kali_packet(clf, encoders, raw_packet: dict) -> dict:
-    """
-    Takes a raw packet from Kali (e.g., {"src_ip": "192.168.1.39", "proto": "tcp", "size": 60})
-    and translates it into the full 42-feature NSL-KDD schema before prediction.
-    """
-    src_ip = raw_packet.get("src_ip", "0.0.0.0")
-    recent_ips.append(src_ip)
-    
-    # Calculate volume for DoS/Flood detection
-    packet_count = recent_ips.count(src_ip)
+import time
 
-    # Extract raw Kali features
+def process_live_kali_packet(clf, encoders, raw_packet: dict) -> dict:
+    src_ip = raw_packet.get("src_ip", "0.0.0.0")
+    current_time = time.time()
+    
+    # Store the IP AND the exact time it arrived
+    recent_ips.append((src_ip, current_time))
+    
+    # Calculate velocity: How many packets from this IP in the last 1.5 seconds?
+    packet_velocity = sum(1 for ip, ts in recent_ips if ip == src_ip and (current_time - ts) < 1.5)
+
     protocol = raw_packet.get("proto", "tcp").lower()
     size = raw_packet.get("size", 0)
     port = raw_packet.get("port", 0)
 
-    # Intelligent Service Mapping based on Port
     if port in [80, 443]: service = "http"
     elif port == 53: service = "domain"
     elif port == 21: service = "ftp"
     elif port == 22: service = "ssh"
     else: service = "private"
 
-    # Build the 42-feature NSL-KDD synthetic mapping
+    # --- UPDATED DYNAMIC TRANSLATION ---
+    # Now it only flags if it sees > 50 packets IN UNDER 1.5 SECONDS
+    if packet_velocity > 50 and protocol == "tcp":
+        simulated_flag = "S0" 
+        simulated_serror = 1.0 
+    else:
+        simulated_flag = "SF" 
+        simulated_serror = 0.0
+
     nsl_packet = {
-        "duration": 0, "protocol_type": protocol, "service": service, "flag": "SF",
+        "duration": 0, "protocol_type": protocol, "service": service, 
+        "flag": simulated_flag,
         "src_bytes": size, "dst_bytes": 0, "land": "0", "wrong_fragment": 0,
         "urgent": 0, "hot": 0, "num_failed_logins": 0, "logged_in": "0",
         "num_compromised": 0, "root_shell": 0, "su_attempted": 0, "num_root": 0,
         "num_file_creations": 0, "num_shells": 0, "num_access_files": 0,
         "num_outbound_cmds": 0, "is_host_login": "0", "is_guest_login": "0",
-        "count": packet_count, "srv_count": packet_count, # The DoS triggers
-        "serror_rate": 0.0, "srv_serror_rate": 0.0, "rerror_rate": 0.0,
-        "srv_rerror_rate": 0.0, "same_srv_rate": 1.0, "diff_srv_rate": 0.0,
+        "count": packet_velocity, "srv_count": packet_velocity, # Feed velocity to AI
+        "serror_rate": simulated_serror, 
+        "srv_serror_rate": simulated_serror, 
+        "rerror_rate": 0.0, "srv_rerror_rate": 0.0, 
+        "same_srv_rate": 1.0, "diff_srv_rate": 0.0,
         "srv_diff_host_rate": 0.0, "dst_host_count": 255, "dst_host_srv_count": 255,
         "dst_host_same_srv_rate": 1.0, "dst_host_diff_srv_rate": 0.0,
         "dst_host_same_src_port_rate": 0.0, "dst_host_srv_diff_host_rate": 0.0,
-        "dst_host_serror_rate": 0.0, "dst_host_srv_serror_rate": 0.0,
+        "dst_host_serror_rate": simulated_serror, 
+        "dst_host_srv_serror_rate": simulated_serror,
         "dst_host_rerror_rate": 0.0, "dst_host_srv_rerror_rate": 0.0,
-        "source_ip": src_ip # Kept for the UI Threat Log
+        "source_ip": src_ip 
     }
 
-    # Pass the synthesized 42-feature packet into your existing engine
     return predict_packet(clf, encoders, nsl_packet)
